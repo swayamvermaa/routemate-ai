@@ -9,29 +9,34 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+
 import { supabase } from "@/lib/supabase";
+import {
+  getCurrentProfile,
+  Profile,
+} from "@/services/profileService";
 
 export default function DashboardPage() {
   const router = useRouter();
 
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [profile, setProfile] = useState<Profile | null>(null);
 
-  // Check if user is logged in
+  // Load current user profile
   useEffect(() => {
-    async function checkUser() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+    async function loadDashboard() {
+      try {
+        const data = await getCurrentProfile();
 
-      if (!user) {
+        setProfile(data);
+        setCheckingAuth(false);
+      } catch (error) {
+        console.error(error);
         router.replace("/login");
-        return;
       }
-
-      setCheckingAuth(false);
     }
 
-    checkUser();
+    loadDashboard();
   }, [router]);
 
   // Logout
@@ -42,7 +47,7 @@ export default function DashboardPage() {
     router.refresh();
   }
 
-  // Loading screen while checking authentication
+  // Loading screen
   if (checkingAuth) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-50">
@@ -83,13 +88,21 @@ export default function DashboardPage() {
             </div>
           </Link>
 
-          {/* Header Buttons */}
-          <div className="flex items-center gap-3">
+          {/* Header Actions */}
+          <div className="flex items-center gap-4">
+
+            {/* Profile */}
+            <Link
+              href="/profile"
+              className="text-sm font-semibold text-slate-500 transition hover:text-slate-900"
+            >
+              Profile
+            </Link>
 
             {/* Home */}
             <Link
               href="/"
-              className="text-sm font-semibold text-slate-500 hover:text-slate-900"
+              className="text-sm font-semibold text-slate-500 transition hover:text-slate-900"
             >
               Home
             </Link>
@@ -117,7 +130,9 @@ export default function DashboardPage() {
           </p>
 
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">
-            Your smarter commute starts here.
+            {profile?.full_name
+              ? `Welcome back, ${profile.full_name.split(" ")[0]}.`
+              : "Your smarter commute starts here."}
           </h1>
 
           <p className="mt-3 text-sm text-slate-500">
