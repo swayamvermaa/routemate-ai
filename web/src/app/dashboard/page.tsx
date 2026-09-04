@@ -16,6 +16,11 @@ import {
   Profile,
 } from "@/services/profileService";
 
+import {
+  getMyRides,
+  Ride,
+} from "@/services/rideService";
+
 import StatCard from "@/components/dashboard/StatCard";
 import QuickAction from "@/components/dashboard/QuickAction";
 import UpcomingRide from "@/components/dashboard/UpcomingRide";
@@ -27,11 +32,40 @@ export default function DashboardPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [upcomingRide, setUpcomingRide] = useState<Ride | null>(null);
+
   useEffect(() => {
-    async function loadProfile() {
+    async function loadDashboard() {
       try {
+        // Load current user profile
         const data = await getCurrentProfile();
+
         setProfile(data);
+
+        // Fetch user's rides
+        const rides = await getMyRides();
+
+        const now = new Date();
+
+        const upcoming = rides
+          .filter((ride) => ride.status === "active")
+          .filter(
+            (ride) =>
+              new Date(
+                `${ride.ride_date}T${ride.ride_time}`
+              ) >= now
+          )
+          .sort(
+            (a, b) =>
+              new Date(
+                `${a.ride_date}T${a.ride_time}`
+              ).getTime() -
+              new Date(
+                `${b.ride_date}T${b.ride_time}`
+              ).getTime()
+          );
+
+        setUpcomingRide(upcoming[0] ?? null);
       } catch (error) {
         console.error(error);
         router.replace("/login");
@@ -40,7 +74,7 @@ export default function DashboardPage() {
       }
     }
 
-    loadProfile();
+    loadDashboard();
   }, [router]);
 
   if (loading) {
@@ -143,7 +177,7 @@ export default function DashboardPage() {
       {/* Lower Content */}
       <section className="mt-8 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
 
-        <UpcomingRide />
+        <UpcomingRide ride={upcomingRide} />
 
         <AIRecommendation />
 
