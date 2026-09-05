@@ -129,6 +129,62 @@ export async function getMyRides() {
   return data as Ride[];
 }
 
+export type RideSearchInput = {
+  pickup: string;
+  destination: string;
+  date: string;
+  time: string;
+};
+
+export async function searchRides(input: RideSearchInput) {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError) {
+    throw userError;
+  }
+
+  if (!user) {
+    throw new Error("User is not authenticated.");
+  }
+
+  let query = supabase
+    .from("rides")
+    .select("*")
+    .eq("status", "active")
+    .eq("ride_date", input.date)
+    .gt("available_seats", 0)
+    .order("ride_time", { ascending: true });
+
+  if (input.pickup.trim()) {
+    query = query.ilike(
+      "pickup_location",
+      `%${input.pickup.trim()}%`
+    );
+  }
+
+  if (input.destination.trim()) {
+    query = query.ilike(
+      "destination",
+      `%${input.destination.trim()}%`
+    );
+  }
+
+  if (input.time) {
+    query = query.gte("ride_time", input.time);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw error;
+  }
+
+  return data as Ride[];
+}
+
 export async function cancelRide(rideId: string) {
   const { data, error } = await supabase
     .from("rides")
@@ -155,4 +211,27 @@ export async function deleteRide(rideId: string) {
   if (error) {
     throw error;
   }
+}
+
+export async function getRideWithDriver(rideId: string) {
+  const { data, error } = await supabase
+    .from("rides")
+    .select(`
+      *,
+      profiles:driver_id (
+        id,
+        full_name,
+        avatar_url,
+        city,
+        college_workplace
+      )
+    `)
+    .eq("id", rideId)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
 }
