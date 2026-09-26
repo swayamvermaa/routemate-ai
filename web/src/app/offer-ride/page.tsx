@@ -10,6 +10,7 @@ import {
   Users,
 } from "lucide-react";
 
+import PageHeader from "@/components/dashboard/PageHeader";
 import { createRide } from "@/services/rideService";
 
 export default function OfferRidePage() {
@@ -119,22 +120,15 @@ export default function OfferRidePage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mb-8">
-        <p className="text-sm font-semibold text-blue-600">
-          Offer a Ride
-        </p>
+      <PageHeader
+        eyebrow="Share your commute"
+        title="Offer a ride"
+        description="Publish your route and let RouteMate find suitable passengers."
+        backHref="/dashboard"
+        backLabel="Back to Dashboard"
+      />
 
-        <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">
-          Share your journey
-        </h1>
-
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-          Publish your route and let RouteMate find commuters
-          travelling in the same direction.
-        </p>
-      </div>
-
-      <div className="grid gap-8 lg:grid-cols-[1fr_320px]">
+      <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_320px]">
         <form
           onSubmit={handleSubmit}
           className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8"
@@ -150,6 +144,7 @@ export default function OfferRidePage() {
                   <h2 className="font-semibold text-slate-950">
                     Route
                   </h2>
+
                   <p className="text-xs text-slate-500">
                     Where are you travelling?
                   </p>
@@ -187,6 +182,7 @@ export default function OfferRidePage() {
                   <h2 className="font-semibold text-slate-950">
                     Ride details
                   </h2>
+
                   <p className="text-xs text-slate-500">
                     Set your schedule and available seats.
                   </p>
@@ -246,6 +242,7 @@ export default function OfferRidePage() {
                   <h2 className="font-semibold text-slate-950">
                     Vehicle
                   </h2>
+
                   <p className="text-xs text-slate-500">
                     Help passengers recognize your vehicle.
                   </p>
@@ -384,6 +381,7 @@ function InfoRow({ text }: { text: string }) {
         size={17}
         className="mt-0.5 shrink-0 text-blue-400"
       />
+
       <span>{text}</span>
     </div>
   );

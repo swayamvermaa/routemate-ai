@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+
 import {
   Bell,
   CarFront,
@@ -15,6 +16,7 @@ import {
   Settings,
   X,
 } from "lucide-react";
+
 import { supabase } from "@/lib/supabase";
 
 type SidebarProps = {
@@ -68,13 +70,22 @@ export default function Sidebar({
 
   async function handleLogout() {
     await supabase.auth.signOut();
-
     window.location.href = "/login";
+  }
+
+  function isActive(href: string) {
+    if (href === "/dashboard") {
+      return pathname === "/dashboard";
+    }
+
+    return (
+      pathname === href ||
+      pathname.startsWith(`${href}/`)
+    );
   }
 
   return (
     <>
-      {/* Mobile Overlay */}
       {mobileOpen && (
         <button
           aria-label="Close menu"
@@ -90,7 +101,6 @@ export default function Sidebar({
             : "-translate-x-full"
         }`}
       >
-        {/* Brand */}
         <div className="flex h-20 items-center justify-between border-b border-slate-100 px-6">
           <Link
             href="/dashboard"
@@ -118,13 +128,13 @@ export default function Sidebar({
           <button
             onClick={onClose}
             className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 lg:hidden"
+            aria-label="Close navigation"
           >
             <X size={19} />
           </button>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 px-4 py-6">
+        <nav className="flex-1 overflow-y-auto px-4 py-6">
           <p className="mb-3 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
             Workspace
           </p>
@@ -132,11 +142,7 @@ export default function Sidebar({
           <div className="space-y-1">
             {navigation.map((item) => {
               const Icon = item.icon;
-
-              const active =
-                pathname === item.href ||
-                (item.href !== "/dashboard" &&
-                  pathname.startsWith(`${item.href}/`));
+              const active = isActive(item.href);
 
               return (
                 <Link
@@ -165,11 +171,15 @@ export default function Sidebar({
           </div>
         </nav>
 
-        {/* Bottom */}
         <div className="border-t border-slate-100 p-4">
           <Link
             href="/settings"
-            className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+            onClick={onClose}
+            className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition ${
+              isActive("/settings")
+                ? "bg-blue-50 text-blue-700"
+                : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+            }`}
           >
             <Settings size={18} />
             Settings

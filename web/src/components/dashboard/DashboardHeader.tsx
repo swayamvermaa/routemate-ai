@@ -8,7 +8,11 @@ import {
   Search,
   User,
 } from "lucide-react";
-import { getCurrentProfile, Profile } from "@/services/profileService";
+
+import {
+  getCurrentProfile,
+  Profile,
+} from "@/services/profileService";
 
 type DashboardHeaderProps = {
   onMenuClick: () => void;
@@ -17,7 +21,8 @@ type DashboardHeaderProps = {
 export default function DashboardHeader({
   onMenuClick,
 }: DashboardHeaderProps) {
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, setProfile] =
+    useState<Profile | null>(null);
 
   useEffect(() => {
     async function loadProfile() {
@@ -39,16 +44,17 @@ export default function DashboardHeader({
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
       <div className="flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
 
-        {/* Mobile Menu */}
+        {/* Mobile hamburger */}
         <button
+          type="button"
           onClick={onMenuClick}
           className="rounded-xl p-2 text-slate-500 hover:bg-slate-100 lg:hidden"
-          aria-label="Open menu"
+          aria-label="Open navigation"
         >
           <Menu size={22} />
         </button>
 
-        {/* Search */}
+        {/* Desktop search */}
         <div className="hidden max-w-md flex-1 lg:flex">
           <div className="relative w-full">
             <Search
@@ -64,9 +70,8 @@ export default function DashboardHeader({
           </div>
         </div>
 
-        {/* Right */}
+        {/* Right side */}
         <div className="flex items-center gap-2 sm:gap-4">
-
           <Link
             href="/notifications"
             className="relative rounded-xl p-2.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
@@ -92,11 +97,10 @@ export default function DashboardHeader({
               </p>
 
               <p className="text-[11px] text-slate-400">
-                View profile
+                RouteMate member
               </p>
             </div>
           </Link>
-
         </div>
       </div>
     </header>

@@ -115,12 +115,18 @@ export async function getMyRides() {
     throw new Error("User is not authenticated.");
   }
 
+  await syncExpiredMyRides();
+
   const { data, error } = await supabase
     .from("rides")
     .select("*")
     .eq("driver_id", user.id)
-    .order("ride_date", { ascending: true })
-    .order("ride_time", { ascending: true });
+    .order("ride_date", {
+      ascending: true,
+    })
+    .order("ride_time", {
+      ascending: true,
+    });
 
   if (error) {
     throw error;
@@ -128,7 +134,6 @@ export async function getMyRides() {
 
   return data as Ride[];
 }
-
 export type RideSearchInput = {
   pickup: string;
   destination: string;
@@ -234,4 +239,136 @@ export async function getRideWithDriver(rideId: string) {
   }
 
   return data;
+}
+
+export type UpdateRideInput = Partial<
+  Pick<
+    Ride,
+    | "pickup_location"
+    | "pickup_lat"
+    | "pickup_lng"
+    | "destination"
+    | "destination_lat"
+    | "destination_lng"
+    | "ride_date"
+    | "ride_time"
+    | "available_seats"
+    | "contribution"
+    | "vehicle_name"
+    | "vehicle_number"
+    | "notes"
+  >
+>;
+
+export async function updateRide(
+  rideId: string,
+  updates: UpdateRideInput
+) {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError) {
+    throw userError;
+  }
+
+  if (!user) {
+    throw new Error("User is not authenticated.");
+  }
+
+  const { data, error } = await supabase
+    .from("rides")
+    .update(updates)
+    .eq("id", rideId)
+    .eq("driver_id", user.id)
+    .select()
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data as Ride;
+}
+
+export async function syncExpiredMyRides() {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError) {
+    throw userError;
+  }
+
+  if (!user) {
+    throw new Error("User is not authenticated.");
+  }
+
+  const { data, error } = await supabase
+    .from("rides")
+    .select("id, ride_date, ride_time, status")
+    .eq("driver_id", user.id)
+    .in("status", ["active", "full"]);
+
+  if (error) {
+    throw error;
+  }
+
+  const now = new Date();
+
+  const expiredIds = (data ?? [])
+    .filter((ride) => {
+      const rideDateTime = new Date(
+        `${ride.ride_date}T${ride.ride_time}`
+      );
+
+      return rideDateTime < now;
+    })
+    .map((ride) => ride.id);
+
+  if (expiredIds.length === 0) {
+    return;
+  }
+
+  const { error: updateError } = await supabase
+    .from("rides")
+    .update({
+      status: "completed",
+    })
+    .in("id", expiredIds)
+    .eq("driver_id", user.id);
+
+  if (updateError) {
+    throw updateError;
+  }
+}
+
+export async function getMyRide(rideId: string) {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError) {
+    throw userError;
+  }
+
+  if (!user) {
+    throw new Error("User is not authenticated.");
+  }
+
+  const { data, error } = await supabase
+    .from("rides")
+    .select("*")
+    .eq("id", rideId)
+    .eq("driver_id", user.id)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data as Ride;
 }

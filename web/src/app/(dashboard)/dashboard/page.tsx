@@ -45,25 +45,31 @@ export default function DashboardPage() {
         // Fetch user's rides
         const rides = await getMyRides();
 
-        const now = new Date();
-
+        // Find the nearest upcoming ride
         const upcoming = rides
-          .filter((ride) => ride.status === "active")
           .filter(
             (ride) =>
-              new Date(
-                `${ride.ride_date}T${ride.ride_time}`
-              ) >= now
+              ride.status === "active" ||
+              ride.status === "full"
           )
-          .sort(
-            (a, b) =>
-              new Date(
-                `${a.ride_date}T${a.ride_time}`
-              ).getTime() -
-              new Date(
-                `${b.ride_date}T${b.ride_time}`
-              ).getTime()
-          );
+          .filter((ride) => {
+            const rideDateTime = new Date(
+              `${ride.ride_date}T${ride.ride_time}`
+            );
+
+            return rideDateTime >= new Date();
+          })
+          .sort((a, b) => {
+            const first = new Date(
+              `${a.ride_date}T${a.ride_time}`
+            ).getTime();
+
+            const second = new Date(
+              `${b.ride_date}T${b.ride_time}`
+            ).getTime();
+
+            return first - second;
+          });
 
         setUpcomingRide(upcoming[0] ?? null);
       } catch (error) {
@@ -77,6 +83,7 @@ export default function DashboardPage() {
     loadDashboard();
   }, [router]);
 
+  // Loading state
   if (loading) {
     return (
       <div className="flex min-h-[calc(100vh-5rem)] items-center justify-center">
