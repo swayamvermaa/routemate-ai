@@ -15,7 +15,12 @@ import {
 } from "lucide-react";
 
 import PageHeader from "@/components/dashboard/PageHeader";
-import { getRideWithDriver } from "@/services/rideService";
+
+import {
+  getMyBookingForRide,
+  getRideWithDriver,
+  requestToJoinRide,
+} from "@/services/rideService";
 
 type DriverProfile = {
   id: string;
@@ -48,7 +53,11 @@ type RideWithDriver = {
 
   notes: string | null;
 
-  status: "active" | "full" | "completed" | "cancelled";
+  status:
+    | "active"
+    | "full"
+    | "completed"
+    | "cancelled";
 
   created_at: string;
   updated_at: string;
@@ -65,23 +74,42 @@ type RideDetailsPageProps = {
 export default function RideDetailsPage({
   params,
 }: RideDetailsPageProps) {
-  const [ride, setRide] = useState<RideWithDriver | null>(null);
+  const [ride, setRide] =
+    useState<RideWithDriver | null>(null);
+
+  const [booking, setBooking] = useState<
+    Awaited<ReturnType<typeof getMyBookingForRide>>
+  >(null);
+
   const [loading, setLoading] = useState(true);
+  const [requesting, setRequesting] = useState(false);
+
   const [error, setError] = useState("");
+  const [requestMessage, setRequestMessage] =
+    useState("");
 
   useEffect(() => {
     async function loadRide() {
       try {
         setLoading(true);
         setError("");
+        setRequestMessage("");
 
         const { id } = await params;
 
         const data = await getRideWithDriver(id);
 
         setRide(data as RideWithDriver);
+
+        const existingBooking =
+          await getMyBookingForRide(id);
+
+        setBooking(existingBooking);
       } catch (err) {
-        console.error("Failed to load ride:", err);
+        console.error(
+          "Failed to load ride:",
+          err
+        );
 
         setError(
           err instanceof Error
@@ -96,6 +124,53 @@ export default function RideDetailsPage({
     loadRide();
   }, [params]);
 
+  async function handleRequestToJoin() {
+    if (!ride) {
+      return;
+    }
+
+    if (ride.available_seats <= 0) {
+      setRequestMessage("This ride is full.");
+      return;
+    }
+
+    if (booking) {
+      setRequestMessage(
+        `You already have a ${booking.status} booking for this ride.`
+      );
+      return;
+    }
+
+    try {
+      setRequesting(true);
+      setRequestMessage("");
+
+      const createdBooking =
+        await requestToJoinRide(ride.id);
+
+      setBooking(createdBooking);
+
+      setRequestMessage(
+        "Your request has been sent to the driver."
+      );
+    } catch (err) {
+  console.error("Failed to request ride:", err);
+  setRequestMessage(
+    err instanceof Error
+      ? err.message
+      : "Unable to send your request."
+  );
+
+      setRequestMessage(
+        err instanceof Error
+          ? err.message
+          : "Unable to send your request. Please try again."
+      );
+    } finally {
+      setRequesting(false);
+    }
+  }
+
   if (loading) {
     return (
       <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
@@ -109,7 +184,9 @@ export default function RideDetailsPage({
 
         <div className="mt-6 animate-pulse rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <div className="h-6 w-48 rounded bg-slate-200 dark:bg-slate-800" />
+
           <div className="mt-4 h-4 w-72 rounded bg-slate-200 dark:bg-slate-800" />
+
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
             <div className="h-24 rounded-xl bg-slate-100 dark:bg-slate-800" />
             <div className="h-24 rounded-xl bg-slate-100 dark:bg-slate-800" />
@@ -135,8 +212,8 @@ export default function RideDetailsPage({
 
         <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-6 dark:border-red-900/50 dark:bg-red-950/20">
           <p className="text-sm text-red-700 dark:text-red-300">
-            We could not load this ride. Please go back and try
-            again.
+            We could not load this ride. Please go
+            back and try again.
           </p>
         </div>
       </main>
@@ -179,7 +256,7 @@ export default function RideDetailsPage({
                 </p>
               </div>
 
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-medium capitalize text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 {ride.status}
               </span>
@@ -229,6 +306,7 @@ export default function RideDetailsPage({
             </h2>
 
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              {/* Date */}
               <div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-800/60">
                 <div className="flex items-center gap-3">
                   <CalendarDays className="h-5 w-5 text-blue-500" />
@@ -245,6 +323,7 @@ export default function RideDetailsPage({
                 </div>
               </div>
 
+              {/* Time */}
               <div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-800/60">
                 <div className="flex items-center gap-3">
                   <Clock className="h-5 w-5 text-violet-500" />
@@ -261,6 +340,7 @@ export default function RideDetailsPage({
                 </div>
               </div>
 
+              {/* Available seats */}
               <div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-800/60">
                 <div className="flex items-center gap-3">
                   <Users className="h-5 w-5 text-emerald-500" />
@@ -276,10 +356,23 @@ export default function RideDetailsPage({
                         ? "seat"
                         : "seats"}
                     </p>
+
+                    {ride.available_seats === 1 && (
+                      <p className="mt-1 text-xs font-semibold text-amber-600">
+                        Almost full · Book fast
+                      </p>
+                    )}
+
+                    {ride.available_seats <= 0 && (
+                      <p className="mt-1 text-xs font-semibold text-red-600">
+                        Fully booked
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
 
+              {/* Contribution */}
               <div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-800/60">
                 <div className="flex items-center gap-3">
                   <IndianRupee className="h-5 w-5 text-amber-500" />
@@ -311,7 +404,8 @@ export default function RideDetailsPage({
                 </h2>
 
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Vehicle information provided by the driver
+                  Vehicle information provided by the
+                  driver
                 </p>
               </div>
             </div>
@@ -323,7 +417,8 @@ export default function RideDetailsPage({
                 </p>
 
                 <p className="mt-1 font-medium text-slate-900 dark:text-white">
-                  {ride.vehicle_name || "Not provided"}
+                  {ride.vehicle_name ||
+                    "Not provided"}
                 </p>
               </div>
 
@@ -333,7 +428,8 @@ export default function RideDetailsPage({
                 </p>
 
                 <p className="mt-1 font-medium text-slate-900 dark:text-white">
-                  {ride.vehicle_number || "Not provided"}
+                  {ride.vehicle_number ||
+                    "Not provided"}
                 </p>
               </div>
             </div>
@@ -365,7 +461,9 @@ export default function RideDetailsPage({
               {driver?.avatar_url ? (
                 <img
                   src={driver.avatar_url}
-                  alt={driver.full_name || "Driver"}
+                  alt={
+                    driver.full_name || "Driver"
+                  }
                   className="h-14 w-14 rounded-full object-cover"
                 />
               ) : (
@@ -401,18 +499,89 @@ export default function RideDetailsPage({
             </h2>
 
             <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-              Send a request to the driver to join this ride.
+              Send a request to the driver to join this
+              ride.
             </p>
 
-            <button
-              type="button"
-              disabled={ride.available_seats <= 0}
-              className="mt-5 w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
-            >
-              {ride.available_seats > 0
-                ? "Request to Join"
-                : "Ride Full"}
-            </button>
+            {/* STEP 10 - Request status / button */}
+            <div className="mt-5">
+              {booking?.status === "accepted" ? (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-center dark:border-emerald-900/50 dark:bg-emerald-950/20">
+                  <p className="font-semibold text-emerald-700 dark:text-emerald-300">
+                    You&apos;re in! 🎉
+                  </p>
+
+                  <p className="mt-1 text-xs text-emerald-600 dark:text-emerald-400">
+                    Your seat has been reserved.
+                  </p>
+                </div>
+              ) : booking?.status === "pending" ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-center dark:border-amber-900/50 dark:bg-amber-950/20">
+                  <p className="font-semibold text-amber-700 dark:text-amber-300">
+                    Request pending
+                  </p>
+
+                  <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                    Waiting for the driver to accept your
+                    request.
+                  </p>
+                </div>
+              ) : booking?.status === "rejected" ? (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-center dark:border-red-900/50 dark:bg-red-950/20">
+                  <p className="font-semibold text-red-700 dark:text-red-300">
+                    Request rejected
+                  </p>
+
+                  <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+                    The driver rejected your request.
+                  </p>
+                </div>
+              ) : booking?.status === "cancelled" ? (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-center dark:border-slate-700 dark:bg-slate-800/50">
+                  <p className="font-semibold text-slate-700 dark:text-slate-200">
+                    Booking cancelled
+                  </p>
+
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    This booking has been cancelled.
+                  </p>
+                </div>
+              ) : ride.available_seats <= 0 ? (
+                <button
+                  type="button"
+                  disabled
+                  className="w-full rounded-xl bg-slate-400 px-4 py-3 text-sm font-semibold text-white"
+                >
+                  Ride Full
+                </button>
+              ) : ride.status !== "active" ? (
+                <button
+                  type="button"
+                  disabled
+                  className="w-full rounded-xl bg-slate-400 px-4 py-3 text-sm font-semibold text-white"
+                >
+                  Ride Unavailable
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleRequestToJoin}
+                  disabled={requesting}
+                  className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {requesting
+                    ? "Sending request..."
+                    : "Request to Join"}
+                </button>
+              )}
+            </div>
+
+            {/* Request message */}
+            {requestMessage && (
+              <p className="mt-3 text-center text-sm font-medium text-slate-600 dark:text-slate-300">
+                {requestMessage}
+              </p>
+            )}
 
             <Link
               href="/find-ride"

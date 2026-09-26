@@ -51,7 +51,9 @@ export type CreateRideInput = {
   notes?: string;
 };
 
-export async function createRide(input: CreateRideInput) {
+export async function createRide(
+  input: CreateRideInput
+) {
   const {
     data: { user },
     error: userError,
@@ -75,8 +77,10 @@ export async function createRide(input: CreateRideInput) {
       pickup_lng: input.pickup_lng ?? null,
 
       destination: input.destination,
-      destination_lat: input.destination_lat ?? null,
-      destination_lng: input.destination_lng ?? null,
+      destination_lat:
+        input.destination_lat ?? null,
+      destination_lng:
+        input.destination_lng ?? null,
 
       ride_date: input.ride_date,
       ride_time: input.ride_time,
@@ -85,7 +89,8 @@ export async function createRide(input: CreateRideInput) {
       contribution: input.contribution,
 
       vehicle_name: input.vehicle_name || null,
-      vehicle_number: input.vehicle_number || null,
+      vehicle_number:
+        input.vehicle_number || null,
 
       notes: input.notes || null,
 
@@ -134,6 +139,7 @@ export async function getMyRides() {
 
   return data as Ride[];
 }
+
 export type RideSearchInput = {
   pickup: string;
   destination: string;
@@ -141,7 +147,9 @@ export type RideSearchInput = {
   time: string;
 };
 
-export async function searchRides(input: RideSearchInput) {
+export async function searchRides(
+  input: RideSearchInput
+) {
   const {
     data: { user },
     error: userError,
@@ -161,7 +169,9 @@ export async function searchRides(input: RideSearchInput) {
     .eq("status", "active")
     .eq("ride_date", input.date)
     .gt("available_seats", 0)
-    .order("ride_time", { ascending: true });
+    .order("ride_time", {
+      ascending: true,
+    });
 
   if (input.pickup.trim()) {
     query = query.ilike(
@@ -178,7 +188,10 @@ export async function searchRides(input: RideSearchInput) {
   }
 
   if (input.time) {
-    query = query.gte("ride_time", input.time);
+    query = query.gte(
+      "ride_time",
+      input.time
+    );
   }
 
   const { data, error } = await query;
@@ -190,7 +203,9 @@ export async function searchRides(input: RideSearchInput) {
   return data as Ride[];
 }
 
-export async function cancelRide(rideId: string) {
+export async function cancelRide(
+  rideId: string
+) {
   const { data, error } = await supabase
     .from("rides")
     .update({
@@ -207,7 +222,9 @@ export async function cancelRide(rideId: string) {
   return data as Ride;
 }
 
-export async function deleteRide(rideId: string) {
+export async function deleteRide(
+  rideId: string
+) {
   const { error } = await supabase
     .from("rides")
     .delete()
@@ -218,7 +235,9 @@ export async function deleteRide(rideId: string) {
   }
 }
 
-export async function getRideWithDriver(rideId: string) {
+export async function getRideWithDriver(
+  rideId: string
+) {
   const { data, error } = await supabase
     .from("rides")
     .select(`
@@ -308,7 +327,9 @@ export async function syncExpiredMyRides() {
 
   const { data, error } = await supabase
     .from("rides")
-    .select("id, ride_date, ride_time, status")
+    .select(
+      "id, ride_date, ride_time, status"
+    )
     .eq("driver_id", user.id)
     .in("status", ["active", "full"]);
 
@@ -332,20 +353,23 @@ export async function syncExpiredMyRides() {
     return;
   }
 
-  const { error: updateError } = await supabase
-    .from("rides")
-    .update({
-      status: "completed",
-    })
-    .in("id", expiredIds)
-    .eq("driver_id", user.id);
+  const { error: updateError } =
+    await supabase
+      .from("rides")
+      .update({
+        status: "completed",
+      })
+      .in("id", expiredIds)
+      .eq("driver_id", user.id);
 
   if (updateError) {
     throw updateError;
   }
 }
 
-export async function getMyRide(rideId: string) {
+export async function getMyRide(
+  rideId: string
+) {
   const {
     data: { user },
     error: userError,
@@ -371,4 +395,161 @@ export async function getMyRide(rideId: string) {
   }
 
   return data as Ride;
+}
+
+
+/* =========================================================
+   BOOKINGS
+   ========================================================= */
+
+export type BookingStatus =
+  | "pending"
+  | "accepted"
+  | "rejected"
+  | "cancelled"
+  | "completed";
+
+export type Booking = {
+  id: string;
+  ride_id: string;
+  passenger_id: string;
+  status: BookingStatus;
+  requested_at: string;
+  responded_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export async function requestToJoinRide(rideId: string) {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError) {
+    console.error("Auth error:", userError);
+    throw userError;
+  }
+
+  if (!user) {
+    throw new Error("User is not authenticated.");
+  }
+
+  const { data, error } = await supabase.rpc("request_to_join_ride", {
+    p_ride_id: rideId,
+  });
+
+  if (error) {
+    console.error("Supabase request_to_join_ride error:", {
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+    });
+
+    throw new Error(
+      error.message ||
+        error.details ||
+        "Unable to send ride request."
+    );
+  }
+
+  return data as Booking;
+}
+
+export async function getMyBookingForRide(
+  rideId: string
+) {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError) {
+    throw userError;
+  }
+
+  if (!user) {
+    throw new Error("User is not authenticated.");
+  }
+
+  const { data, error } = await supabase
+    .from("bookings")
+    .select("*")
+    .eq("ride_id", rideId)
+    .eq("passenger_id", user.id)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data as Booking | null;
+}
+
+export async function getRideBookingRequests(
+  rideId: string
+) {
+  const { data, error } = await supabase
+    .from("bookings")
+    .select(`
+      *,
+      profiles:passenger_id (
+        id,
+        full_name,
+        avatar_url,
+        city,
+        college_workplace
+      )
+    `)
+    .eq("ride_id", rideId)
+    .order("requested_at", {
+      ascending: false,
+    });
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function acceptBooking(
+  bookingId: string
+) {
+  const {
+    data,
+    error,
+  } = await supabase.rpc(
+    "accept_booking",
+    {
+      p_booking_id: bookingId,
+    }
+  );
+
+  if (error) {
+    throw error;
+  }
+
+  return data as Booking;
+}
+
+export async function rejectBooking(
+  bookingId: string
+) {
+  const {
+    data,
+    error,
+  } = await supabase.rpc(
+    "reject_booking",
+    {
+      p_booking_id: bookingId,
+    }
+  );
+
+  if (error) {
+    throw error;
+  }
+
+  return data as Booking;
 }
