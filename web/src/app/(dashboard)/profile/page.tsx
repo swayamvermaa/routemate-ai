@@ -1,16 +1,16 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
-  ArrowLeft,
-  CarFront,
   CheckCircle2,
   Loader2,
   Save,
   User,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+
+import PageHeader from "@/components/dashboard/PageHeader";
+
 import {
   getCurrentProfile,
   updateCurrentProfile,
@@ -25,7 +25,8 @@ export default function ProfilePage() {
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [city, setCity] = useState("");
-  const [collegeWorkplace, setCollegeWorkplace] = useState("");
+  const [collegeWorkplace, setCollegeWorkplace] =
+    useState("");
   const [bio, setBio] = useState("");
 
   const [loading, setLoading] = useState(true);
@@ -44,7 +45,9 @@ export default function ProfilePage() {
         setFullName(data.full_name ?? "");
         setPhone(data.phone ?? "");
         setCity(data.city ?? "");
-        setCollegeWorkplace(data.college_workplace ?? "");
+        setCollegeWorkplace(
+          data.college_workplace ?? ""
+        );
         setBio(data.bio ?? "");
       } catch (error) {
         console.error(error);
@@ -73,14 +76,18 @@ export default function ProfilePage() {
         full_name: fullName.trim(),
         phone: phone.trim(),
         city: city.trim(),
-        college_workplace: collegeWorkplace.trim(),
+        college_workplace:
+          collegeWorkplace.trim(),
         bio: bio.trim(),
       });
 
       setProfile(updated);
-      setSuccess("Profile updated successfully.");
+      setSuccess(
+        "Profile updated successfully."
+      );
     } catch (error) {
       console.error(error);
+
       setError(
         error instanceof Error
           ? error.message
@@ -95,7 +102,10 @@ export default function ProfilePage() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-50">
         <div className="flex items-center gap-2 text-sm font-semibold text-slate-500">
-          <Loader2 className="animate-spin" size={18} />
+          <Loader2
+            className="animate-spin"
+            size={18}
+          />
           Loading profile...
         </div>
       </main>
@@ -108,68 +118,19 @@ export default function ProfilePage() {
 
   return (
     <main className="min-h-screen bg-slate-50">
-
-      {/* Header */}
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-3"
-          >
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white">
-              <CarFront size={20} />
-            </div>
-
-            <div>
-              <p className="font-bold text-slate-950">
-                RouteMate{" "}
-                <span className="text-blue-600">
-                  AI
-                </span>
-              </p>
-
-              <p className="text-[8px] uppercase tracking-[0.2em] text-slate-400">
-                Smart Mobility
-              </p>
-            </div>
-          </Link>
-
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-2 text-sm font-semibold text-slate-500 transition hover:text-slate-900"
-          >
-            <ArrowLeft size={16} />
-            Dashboard
-          </Link>
-
-        </div>
-      </header>
-
-      {/* Content */}
-      <section className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
-
-        <div>
-          <p className="text-sm font-semibold text-blue-600">
-            Your Profile
-          </p>
-
-          <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">
-            Complete your RouteMate profile
-          </h1>
-
-          <p className="mt-3 text-sm leading-6 text-slate-500">
-            A complete profile helps other commuters know who they are
-            travelling with.
-          </p>
-        </div>
+      <section className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+        <PageHeader
+          eyebrow="Account"
+          title="Your profile"
+          description="Manage the information other RouteMate members see."
+          backHref="/dashboard"
+          backLabel="Back to Dashboard"
+        />
 
         <div className="mt-8 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-
           {/* Profile Header */}
           <div className="border-b border-slate-100 bg-slate-50/70 p-6 sm:p-8">
             <div className="flex items-center gap-4">
-
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 text-blue-600">
                 <User size={28} />
               </div>
@@ -183,16 +144,13 @@ export default function ProfilePage() {
                   {profile.email}
                 </p>
               </div>
-
             </div>
           </div>
 
           {/* Form */}
           <div className="space-y-6 p-6 sm:p-8">
-
             {/* Name + Phone */}
             <div className="grid gap-6 sm:grid-cols-2">
-
               <div>
                 <label
                   htmlFor="fullName"
@@ -204,7 +162,9 @@ export default function ProfilePage() {
                 <input
                   id="fullName"
                   value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
+                  onChange={(e) =>
+                    setFullName(e.target.value)
+                  }
                   placeholder="Your full name"
                   className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
                 />
@@ -221,17 +181,17 @@ export default function ProfilePage() {
                 <input
                   id="phone"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) =>
+                    setPhone(e.target.value)
+                  }
                   placeholder="+91 XXXXX XXXXX"
                   className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
                 />
               </div>
-
             </div>
 
             {/* City + College */}
             <div className="grid gap-6 sm:grid-cols-2">
-
               <div>
                 <label
                   htmlFor="city"
@@ -243,7 +203,9 @@ export default function ProfilePage() {
                 <input
                   id="city"
                   value={city}
-                  onChange={(e) => setCity(e.target.value)}
+                  onChange={(e) =>
+                    setCity(e.target.value)
+                  }
                   placeholder="e.g. Agra"
                   className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
                 />
@@ -261,13 +223,14 @@ export default function ProfilePage() {
                   id="collegeWorkplace"
                   value={collegeWorkplace}
                   onChange={(e) =>
-                    setCollegeWorkplace(e.target.value)
+                    setCollegeWorkplace(
+                      e.target.value
+                    )
                   }
                   placeholder="Where do you study or work?"
                   className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
                 />
               </div>
-
             </div>
 
             {/* Bio */}
@@ -282,7 +245,9 @@ export default function ProfilePage() {
               <textarea
                 id="bio"
                 value={bio}
-                onChange={(e) => setBio(e.target.value)}
+                onChange={(e) =>
+                  setBio(e.target.value)
+                }
                 rows={4}
                 maxLength={300}
                 placeholder="Tell other commuters a little about yourself..."
@@ -310,7 +275,6 @@ export default function ProfilePage() {
 
             {/* Save */}
             <div className="flex justify-end border-t border-slate-100 pt-6">
-
               <button
                 type="button"
                 onClick={handleSave}
@@ -332,9 +296,7 @@ export default function ProfilePage() {
                   </>
                 )}
               </button>
-
             </div>
-
           </div>
         </div>
       </section>
