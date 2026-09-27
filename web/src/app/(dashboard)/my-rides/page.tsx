@@ -1,6 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  FormEvent,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import Link from "next/link";
 import {
   CalendarDays,
@@ -22,6 +27,7 @@ import {
   cancelBooking,
   cancelRide,
   completeRide,
+  createRideReview,
   getMyBookedRides,
   getMyReviewForBooking,
   getMyRides,
@@ -87,6 +93,22 @@ export default function MyRidesPage() {
 
   const [reviews, setReviews] =
     useState<Record<string, RideReview | null>>({});
+
+  /* =========================================================
+     RATING STATE
+  ========================================================= */
+
+  const [ratingBooking, setRatingBooking] =
+    useState<MyBookedRide | null>(null);
+
+  const [ratingValue, setRatingValue] =
+    useState(0);
+
+  const [reviewText, setReviewText] =
+    useState("");
+
+  const [submittingRating, setSubmittingRating] =
+    useState(false);
 
   /* =========================================================
      COMPLETE RIDE STATE
@@ -376,6 +398,79 @@ export default function MyRidesPage() {
   }
 
   /* =========================================================
+     RATING MODAL
+  ========================================================= */
+
+  function openRatingModal(
+    booking: MyBookedRide
+  ) {
+    setRatingBooking(booking);
+    setRatingValue(0);
+    setReviewText("");
+    setErrorMessage("");
+  }
+
+  function closeRatingModal() {
+    if (submittingRating) {
+      return;
+    }
+
+    setRatingBooking(null);
+    setRatingValue(0);
+    setReviewText("");
+  }
+
+  async function handleSubmitRating(
+    event: FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault();
+
+    if (!ratingBooking) {
+      return;
+    }
+
+    if (ratingValue < 1 || ratingValue > 5) {
+      setErrorMessage(
+        "Please select a rating from 1 to 5 stars."
+      );
+      return;
+    }
+
+    try {
+      setSubmittingRating(true);
+      setErrorMessage("");
+
+      const review = await createRideReview(
+        ratingBooking.booking_id,
+        ratingValue,
+        reviewText
+      );
+
+      setReviews((current) => ({
+        ...current,
+        [ratingBooking.booking_id]: review,
+      }));
+
+      setRatingBooking(null);
+      setRatingValue(0);
+      setReviewText("");
+    } catch (error) {
+      console.error(
+        "Failed to submit rating:",
+        error
+      );
+
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to submit your rating."
+      );
+    } finally {
+      setSubmittingRating(false);
+    }
+  }
+
+  /* =========================================================
      OPEN COMPLETE RIDE MODAL
   ========================================================= */
 
@@ -423,7 +518,7 @@ export default function MyRidesPage() {
   ========================================================= */
 
   async function handleCompleteRide(
-    event: React.FormEvent<HTMLFormElement>
+    event: FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
 
@@ -733,6 +828,7 @@ export default function MyRidesPage() {
                       onCancelBooking={
                         handleCancelBooking
                       }
+                      onRateRide={openRatingModal}
                     />
                   )
                 )}
@@ -811,6 +907,166 @@ export default function MyRidesPage() {
             sections.cancelledOffered.length === 0 && (
               <EmptyState />
             )}
+        </div>
+      )}
+
+      {/* =====================================================
+          RATE RIDE MODAL
+      ===================================================== */}
+
+      {ratingBooking && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/50 px-4 py-6 backdrop-blur-sm">
+          <div className="w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl">
+            <div className="border-b border-slate-100 bg-slate-50/80 px-5 py-5 sm:px-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
+                      <Star className="h-5 w-5" />
+                    </div>
+
+                    <div>
+                      <h2 className="text-lg font-extrabold text-slate-950">
+                        Rate Your Ride
+                      </h2>
+
+                      <p className="text-xs text-slate-500">
+                        How was your experience with the driver?
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={closeRatingModal}
+                  disabled={submittingRating}
+                  className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 transition hover:bg-white hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            <form
+              onSubmit={handleSubmitRating}
+              className="px-5 py-6 sm:px-6"
+            >
+              <div className="rounded-2xl border border-amber-100 bg-amber-50/60 p-4">
+                <p className="text-sm font-bold text-slate-900">
+                  {ratingBooking.driver_name ||
+                    "Your driver"}
+                </p>
+
+                <p className="mt-1 text-xs text-slate-500">
+                  {ratingBooking.pickup_location}
+                  {" → "}
+                  {ratingBooking.destination}
+                </p>
+              </div>
+
+              <div className="mt-6">
+                <p className="text-sm font-bold text-slate-800">
+                  Your rating
+                </p>
+
+                <div className="mt-3 flex items-center gap-2">
+                  {Array.from(
+                    { length: 5 },
+                    (_, index) => {
+                      const star = index + 1;
+                      const active =
+                        star <= ratingValue;
+
+                      return (
+                        <button
+                          key={star}
+                          type="button"
+                          onClick={() =>
+                            setRatingValue(star)
+                          }
+                          disabled={submittingRating}
+                          aria-label={`Rate ${star} out of 5`}
+                          className="rounded-xl p-1 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          <Star
+                            className={`h-9 w-9 ${
+                              active
+                                ? "fill-amber-400 text-amber-400"
+                                : "text-slate-300"
+                            }`}
+                          />
+                        </button>
+                      );
+                    }
+                  )}
+                </div>
+
+                <p className="mt-2 text-xs font-semibold text-slate-500">
+                  {ratingValue === 0
+                    ? "Select a rating"
+                    : `${ratingValue} out of 5`}
+                </p>
+              </div>
+
+              <div className="mt-6">
+                <label
+                  htmlFor="ride-review"
+                  className="mb-2 block text-sm font-bold text-slate-800"
+                >
+                  Review{" "}
+                  <span className="font-normal text-slate-400">
+                    (optional)
+                  </span>
+                </label>
+
+                <textarea
+                  id="ride-review"
+                  value={reviewText}
+                  onChange={(event) =>
+                    setReviewText(
+                      event.target.value
+                    )
+                  }
+                  disabled={submittingRating}
+                  maxLength={500}
+                  rows={4}
+                  placeholder="Tell us about your ride..."
+                  className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-amber-400 focus:ring-4 focus:ring-amber-400/10 disabled:bg-slate-50"
+                />
+
+                <p className="mt-1 text-right text-xs text-slate-400">
+                  {reviewText.length}/500
+                </p>
+              </div>
+
+              <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={closeRatingModal}
+                  disabled={submittingRating}
+                  className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={
+                    submittingRating ||
+                    ratingValue === 0
+                  }
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-5 py-3 text-sm font-bold text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Star className="h-4 w-4" />
+
+                  {submittingRating
+                    ? "Submitting..."
+                    : "Submit Rating"}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
@@ -1160,6 +1416,10 @@ type PassengerRideCardProps = {
   onCancelBooking: (
     bookingId: string
   ) => void;
+
+  onRateRide?: (
+    booking: MyBookedRide
+  ) => void;
 };
 
 function PassengerRideCard({
@@ -1167,6 +1427,7 @@ function PassengerRideCard({
   review,
   cancellingBookingId,
   onCancelBooking,
+  onRateRide,
 }: PassengerRideCardProps) {
   const isCompleted =
     booking.booking_status === "completed" ||
@@ -1491,9 +1752,10 @@ function PassengerRideCard({
 
                 <button
                   type="button"
-                  disabled
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-bold text-white opacity-70"
-                  title="Rating UI will be enabled in the next step"
+                  onClick={() =>
+                    onRateRide?.(booking)
+                  }
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-amber-600 focus:outline-none focus:ring-4 focus:ring-amber-500/20"
                 >
                   <Star className="h-4 w-4" />
                   Rate Ride

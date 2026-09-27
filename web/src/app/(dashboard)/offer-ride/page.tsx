@@ -13,6 +13,10 @@ import {
 } from "lucide-react";
 
 import PageHeader from "@/components/dashboard/PageHeader";
+import LocationPicker, {
+  SelectedLocation,
+} from "@/components/dashboard/LocationPicker";
+
 import { createRide } from "@/services/rideService";
 
 export default function OfferRidePage() {
@@ -29,6 +33,12 @@ export default function OfferRidePage() {
     vehicleNumber: "",
     notes: "",
   });
+
+  const [pickupLocation, setPickupLocation] =
+    useState<SelectedLocation | null>(null);
+
+  const [destinationLocation, setDestinationLocation] =
+    useState<SelectedLocation | null>(null);
 
   const [acceptsCash, setAcceptsCash] =
     useState(true);
@@ -65,6 +75,20 @@ export default function OfferRidePage() {
     if (!form.pickup.trim()) {
       setErrorMessage(
         "Please enter your pickup location."
+      );
+      return;
+    }
+
+    if (!pickupLocation) {
+      setErrorMessage(
+        "Please select a pickup location from the suggestions."
+      );
+      return;
+    }
+
+    if (!destinationLocation) {
+      setErrorMessage(
+        "Please select a destination from the suggestions."
       );
       return;
     }
@@ -205,28 +229,32 @@ export default function OfferRidePage() {
               </div>
 
               <div className="grid gap-5 sm:grid-cols-2">
-                <InputField
+                <LocationPicker
                   label="Pickup location"
-                  placeholder="e.g. Sikandra"
+                  placeholder="Search pickup place..."
                   value={form.pickup}
-                  onChange={(value) =>
+                  onChange={(location) => {
+                    setPickupLocation(location);
+
                     updateField(
                       "pickup",
-                      value
-                    )
-                  }
+                      location?.address || ""
+                    );
+                  }}
                 />
 
-                <InputField
+                <LocationPicker
                   label="Destination"
-                  placeholder="e.g. Sharda University"
+                  placeholder="Search destination..."
                   value={form.destination}
-                  onChange={(value) =>
+                  onChange={(location) => {
+                    setDestinationLocation(location);
+
                     updateField(
                       "destination",
-                      value
-                    )
-                  }
+                      location?.address || ""
+                    );
+                  }}
                 />
               </div>
             </section>
@@ -597,3 +625,4 @@ function InfoRow({
     </div>
   );
 }
+

@@ -13,6 +13,10 @@ Users,
 } from "lucide-react";
 
 import PageHeader from "@/components/dashboard/PageHeader";
+import LocationPicker, {
+  SelectedLocation,
+} from "@/components/dashboard/LocationPicker";
+
 import { Ride, searchRides } from "@/services/rideService";
 
 type SearchForm = {
@@ -23,8 +27,13 @@ time: string;
 };
 
 export default function FindRidePage() {
-const [form, setForm] = useState<SearchForm>({
-pickup: "",
+const [pickupLocation, setPickupLocation] =
+  useState<SelectedLocation | null>(null);
+
+const [destinationLocation, setDestinationLocation] =
+  useState<SelectedLocation | null>(null);
+
+const [form, setForm] = useState<SearchForm>({pickup: "",
 destination: "",
 date: "",
 time: "",
@@ -55,6 +64,20 @@ setErrorMessage("");
 
 if (!form.pickup.trim()) {
   setErrorMessage("Please enter your pickup location.");
+  return;
+}
+
+if (!pickupLocation) {
+  setErrorMessage(
+    "Please select a pickup location from the suggestions."
+  );
+  return;
+}
+
+if (!destinationLocation) {
+  setErrorMessage(
+    "Please select a destination from the suggestions."
+  );
   return;
 }
 
@@ -128,22 +151,32 @@ return ( <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8"> <PageHead
     </div>
 
     <div className="grid gap-4 lg:grid-cols-[1fr_1fr_170px_150px_auto]">
-      <SearchInput
+      <LocationPicker
         label="Pickup"
-        placeholder="e.g. Sikandra"
+        placeholder="Search pickup place..."
         value={form.pickup}
-        onChange={(value) =>
-          updateField("pickup", value)
-        }
+        onChange={(location) => {
+          setPickupLocation(location);
+
+          updateField(
+            "pickup",
+            location?.address || ""
+          );
+        }}
       />
 
-      <SearchInput
+      <LocationPicker
         label="Destination"
-        placeholder="e.g. Sharda University"
+        placeholder="Search destination..."
         value={form.destination}
-        onChange={(value) =>
-          updateField("destination", value)
-        }
+        onChange={(location) => {
+          setDestinationLocation(location);
+
+          updateField(
+            "destination",
+            location?.address || ""
+          );
+        }}
       />
 
       <SearchInput
