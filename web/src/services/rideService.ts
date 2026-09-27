@@ -29,6 +29,11 @@ export type Ride = {
 
   status: "active" | "full" | "completed" | "cancelled";
 
+  completed_at: string | null;
+  end_location: string | null;
+  end_date: string | null;
+  end_time: string | null;
+
   created_at: string;
   updated_at: string;
 };
@@ -135,7 +140,10 @@ export async function getMyRides() {
     throw new Error("User is not authenticated.");
   }
 
-  await syncExpiredMyRides();
+  /*
+   * Automatic completion is intentionally disabled.
+   * Do not call syncExpiredMyRides() here.
+   */
 
   const { data, error } = await supabase
     .from("rides")
@@ -237,6 +245,43 @@ export async function cancelRide(
   return data as Ride;
 }
 
+/**
+ * Complete a ride manually.
+ *
+ * Completion is handled by the Supabase
+ * complete_ride RPC.
+ */
+export async function completeRide(
+  rideId: string,
+  endLocation: string,
+  endDate: string,
+  endTime: string
+): Promise<Ride> {
+  const { data, error } = await supabase.rpc(
+    "complete_ride",
+    {
+      p_ride_id: rideId,
+      p_end_location: endLocation,
+      p_end_date: endDate,
+      p_end_time: endTime,
+    }
+  );
+
+  if (error) {
+    console.error(
+      "complete_ride error:",
+      error
+    );
+
+    throw new Error(
+      error.message ||
+        "Unable to complete ride."
+    );
+  }
+
+  return data as Ride;
+}
+
 export async function deleteRide(
   rideId: string
 ) {
@@ -329,6 +374,11 @@ export async function updateRide(
   return data as Ride;
 }
 
+/**
+ * Kept for possible future manual use.
+ *
+ * It is NOT called automatically.
+ */
 export async function syncExpiredMyRides() {
   const {
     data: { user },
@@ -434,10 +484,12 @@ export type Booking = {
   status: BookingStatus;
 
   payment_method: "cash" | "upi" | null;
+
   payment_status:
     | "pending"
     | "paid"
     | "confirmed";
+
   payment_amount: number | null;
 
   requested_at: string;
@@ -457,7 +509,11 @@ export async function requestToJoinRide(
   } = await supabase.auth.getUser();
 
   if (userError) {
-    console.error("Auth error:", userError);
+    console.error(
+      "Auth error:",
+      userError
+    );
+
     throw userError;
   }
 
@@ -504,7 +560,9 @@ export async function requestToJoinRide(
    * Check seat availability.
    */
   if (ride.available_seats <= 0) {
-    throw new Error("This ride is full.");
+    throw new Error(
+      "This ride is full."
+    );
   }
 
   /*
@@ -538,7 +596,7 @@ export async function requestToJoinRide(
   }
 
   /*
-   * Create booking using the secure RPC.
+   * Create booking using secure RPC.
    */
   const { data, error } = await supabase.rpc(
     "request_to_join_ride",
@@ -689,6 +747,451 @@ export async function rejectBooking(
 
   if (error) {
     throw error;
+  }
+
+  return data as Booking;
+}
+
+// =========================================================
+// TASK 8C — PASSENGER BOOKED RIDES
+// =========================================================
+
+export type MyBookedRide = {
+  booking_id: string;
+
+  booking_status:
+    | "pending"
+    | "accepted"
+    | "rejected"
+    | "cancelled"
+    | "completed";
+
+  payment_method: "cash" | "upi" | null;
+
+  payment_status:
+    | "pending"
+    | "paid"
+    | "confirmed";
+
+  payment_amount: number | null;
+
+  requested_at: string;
+  responded_at: string | null;
+
+  ride_id: string;
+  driver_id: string;
+
+  pickup_location: string;
+  destination: string;
+
+  ride_date: string;
+  ride_time: string;
+
+  available_seats: number;
+  contribution: number;
+
+  vehicle_name: string | null;
+  vehicle_number: string | null;
+
+  ride_status:
+    | "active"
+    | "full"
+    | "completed"
+    | "cancelled";
+
+  driver_name: string | null;
+  driver_avatar_url: string | null;
+  driver_city: string | null;
+  driver_college_workplace: string | null;
+};
+
+/**
+ * Get all rides where the logged-in user is a passenger.
+ *
+ * Automatic completion is disabled.
+ */
+export async function getMyBookedRides(): Promise<
+  MyBookedRide[]
+> {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError) {
+    throw userError;
+  }
+
+  if (!user) {
+    throw new Error("User is not authenticated.");
+  }
+
+  /*
+   * IMPORTANT:
+   * completeDueRides() is NOT called here.
+   */
+
+  const { data, error } = await supabase.rpc(
+    "get_my_booked_rides"
+  );
+
+  if (error) {
+    console.error(
+      "get_my_booked_rides error:",
+      error
+    );
+
+    throw error;
+  }
+
+  return (data ?? []) as MyBookedRide[];
+}
+
+/**
+ * Kept for possible future manual use.
+ *
+ * It is NOT called automatically.
+ */
+export async function completeDueRides(): Promise<number> {
+  const { data, error } = await supabase.rpc(
+    "complete_due_rides"
+  );
+
+  if (error) {
+    console.error(
+      "complete_due_rides error:",
+      error
+    );
+
+    throw error;
+  }
+
+  return Number(data ?? 0);
+}
+
+// =========================================================
+// TASK 8C — NOTIFICATIONS
+// =========================================================
+
+export type NotificationType =
+  | "ride_completed"
+  | "booking_accepted"
+  | "booking_rejected"
+  | "ride_cancelled"
+  | "rating_reminder"
+  | "general";
+
+export type AppNotification = {
+  id: string;
+
+  user_id: string;
+
+  type: NotificationType;
+
+  title: string;
+
+  message: string;
+
+  ride_id: string | null;
+
+  booking_id: string | null;
+
+  is_read: boolean;
+
+  created_at: string;
+};
+
+/**
+ * Get current user's notifications.
+ *
+ * Automatic ride completion is disabled.
+ */
+export async function getMyNotifications(): Promise<
+  AppNotification[]
+> {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError) {
+    throw userError;
+  }
+
+  if (!user) {
+    throw new Error("User is not authenticated.");
+  }
+
+  /*
+   * completeDueRides() is intentionally
+   * NOT called here.
+   */
+
+  const { data, error } = await supabase
+    .from("notifications")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("created_at", {
+      ascending: false,
+    });
+
+  if (error) {
+    console.error(
+      "getMyNotifications error:",
+      error
+    );
+
+    throw error;
+  }
+
+  return (data ?? []) as AppNotification[];
+}
+
+/**
+ * Get unread notification count.
+ *
+ * Automatic ride completion is disabled.
+ */
+export async function getUnreadNotificationCount(): Promise<number> {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError) {
+    throw userError;
+  }
+
+  if (!user) {
+    return 0;
+  }
+
+  /*
+   * completeDueRides() is intentionally
+   * NOT called here.
+   */
+
+  const { count, error } = await supabase
+    .from("notifications")
+    .select("id", {
+      count: "exact",
+      head: true,
+    })
+    .eq("user_id", user.id)
+    .eq("is_read", false);
+
+  if (error) {
+    console.error(
+      "getUnreadNotificationCount error:",
+      error
+    );
+
+    throw error;
+  }
+
+  return count ?? 0;
+}
+
+/**
+ * Mark one notification as read.
+ */
+export async function markNotificationAsRead(
+  notificationId: string
+) {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError) {
+    throw userError;
+  }
+
+  if (!user) {
+    throw new Error("User is not authenticated.");
+  }
+
+  const { data, error } = await supabase
+    .from("notifications")
+    .update({
+      is_read: true,
+    })
+    .eq("id", notificationId)
+    .eq("user_id", user.id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error(
+      "markNotificationAsRead error:",
+      error
+    );
+
+    throw error;
+  }
+
+  return data as AppNotification;
+}
+
+/**
+ * Mark all notifications as read.
+ */
+export async function markAllNotificationsAsRead() {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError) {
+    throw userError;
+  }
+
+  if (!user) {
+    throw new Error("User is not authenticated.");
+  }
+
+  const { error } = await supabase
+    .from("notifications")
+    .update({
+      is_read: true,
+    })
+    .eq("user_id", user.id)
+    .eq("is_read", false);
+
+  if (error) {
+    console.error(
+      "markAllNotificationsAsRead error:",
+      error
+    );
+
+    throw error;
+  }
+}
+
+// =========================================================
+// TASK 8C — REVIEWS / RATINGS
+// =========================================================
+
+export type RideReview = {
+  id: string;
+
+  booking_id: string;
+
+  ride_id: string;
+
+  reviewer_id: string;
+
+  reviewee_id: string;
+
+  rating: number;
+
+  review_text: string | null;
+
+  created_at: string;
+
+  updated_at: string;
+};
+
+/**
+ * Check whether current passenger has already rated
+ * a completed booking.
+ */
+export async function getMyReviewForBooking(
+  bookingId: string
+): Promise<RideReview | null> {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError) {
+    throw userError;
+  }
+
+  if (!user) {
+    throw new Error("User is not authenticated.");
+  }
+
+  const { data, error } = await supabase
+    .from("reviews")
+    .select("*")
+    .eq("booking_id", bookingId)
+    .eq("reviewer_id", user.id)
+    .maybeSingle();
+
+  if (error) {
+    console.error(
+      "getMyReviewForBooking error:",
+      error
+    );
+
+    throw error;
+  }
+
+  return data as RideReview | null;
+}
+
+/**
+ * Submit passenger rating for driver.
+ *
+ * Rating is allowed only after booking is completed.
+ */
+export async function createRideReview(
+  bookingId: string,
+  rating: number,
+  reviewText?: string
+): Promise<RideReview> {
+  if (rating < 1 || rating > 5) {
+    throw new Error(
+      "Rating must be between 1 and 5."
+    );
+  }
+
+  const { data, error } = await supabase.rpc(
+    "create_ride_review",
+    {
+      p_booking_id: bookingId,
+      p_rating: rating,
+      p_review_text:
+        reviewText?.trim() || null,
+    }
+  );
+
+  if (error) {
+    console.error(
+      "create_ride_review error:",
+      error
+    );
+
+    throw error;
+  }
+
+  return data as RideReview;
+}
+
+/**
+ * Cancel a passenger booking.
+ */
+export async function cancelBooking(
+  bookingId: string
+): Promise<Booking> {
+  const { data, error } = await supabase.rpc(
+    "cancel_booking",
+    {
+      p_booking_id: bookingId,
+    }
+  );
+
+  if (error) {
+    console.error(
+      "cancel_booking error:",
+      error
+    );
+
+    throw new Error(
+      error.message ||
+        "Unable to cancel booking."
+    );
   }
 
   return data as Booking;
