@@ -4,9 +4,11 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
+  Banknote,
   Car,
   CheckCircle2,
   MapPin,
+  Smartphone,
   Users,
 } from "lucide-react";
 
@@ -28,9 +30,19 @@ export default function OfferRidePage() {
     notes: "",
   });
 
+  const [acceptsCash, setAcceptsCash] =
+    useState(true);
+
+  const [acceptsUpi, setAcceptsUpi] =
+    useState(false);
+
+  const [upiId, setUpiId] = useState("");
+
   const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
+  const [errorMessage, setErrorMessage] =
+    useState("");
+  const [successMessage, setSuccessMessage] =
+    useState("");
 
   function updateField(
     field: keyof typeof form,
@@ -42,42 +54,72 @@ export default function OfferRidePage() {
     }));
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(
+    event: FormEvent<HTMLFormElement>
+  ) {
     event.preventDefault();
 
     setErrorMessage("");
     setSuccessMessage("");
 
     if (!form.pickup.trim()) {
-      setErrorMessage("Please enter your pickup location.");
+      setErrorMessage(
+        "Please enter your pickup location."
+      );
       return;
     }
 
     if (!form.destination.trim()) {
-      setErrorMessage("Please enter your destination.");
+      setErrorMessage(
+        "Please enter your destination."
+      );
       return;
     }
 
     if (!form.date) {
-      setErrorMessage("Please select a ride date.");
+      setErrorMessage(
+        "Please select a ride date."
+      );
       return;
     }
 
     if (!form.time) {
-      setErrorMessage("Please select a ride time.");
+      setErrorMessage(
+        "Please select a ride time."
+      );
       return;
     }
 
     const seats = Number(form.seats);
-    const contribution = Number(form.contribution || 0);
+    const contribution = Number(
+      form.contribution || 0
+    );
 
     if (seats < 1 || seats > 8) {
-      setErrorMessage("Available seats must be between 1 and 8.");
+      setErrorMessage(
+        "Available seats must be between 1 and 8."
+      );
       return;
     }
 
     if (contribution < 0) {
-      setErrorMessage("Contribution cannot be negative.");
+      setErrorMessage(
+        "Contribution cannot be negative."
+      );
+      return;
+    }
+
+    if (!acceptsCash && !acceptsUpi) {
+      setErrorMessage(
+        "Please select at least one payment method."
+      );
+      return;
+    }
+
+    if (acceptsUpi && !upiId.trim()) {
+      setErrorMessage(
+        "Please enter your UPI ID."
+      );
       return;
     }
 
@@ -94,13 +136,23 @@ export default function OfferRidePage() {
         available_seats: seats,
         contribution,
 
-        vehicle_name: form.vehicleName.trim(),
-        vehicle_number: form.vehicleNumber.trim(),
+        vehicle_name:
+          form.vehicleName.trim(),
+        vehicle_number:
+          form.vehicleNumber.trim(),
 
         notes: form.notes.trim(),
+
+        accepts_cash: acceptsCash,
+        accepts_upi: acceptsUpi,
+        upi_id: acceptsUpi
+          ? upiId.trim()
+          : null,
       });
 
-      setSuccessMessage("Your ride has been published successfully.");
+      setSuccessMessage(
+        "Your ride has been published successfully."
+      );
 
       setTimeout(() => {
         router.push("/my-rides");
@@ -134,6 +186,7 @@ export default function OfferRidePage() {
           className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8"
         >
           <div className="space-y-8">
+            {/* Route */}
             <section>
               <div className="mb-5 flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
@@ -157,7 +210,10 @@ export default function OfferRidePage() {
                   placeholder="e.g. Sikandra"
                   value={form.pickup}
                   onChange={(value) =>
-                    updateField("pickup", value)
+                    updateField(
+                      "pickup",
+                      value
+                    )
                   }
                 />
 
@@ -166,12 +222,16 @@ export default function OfferRidePage() {
                   placeholder="e.g. Sharda University"
                   value={form.destination}
                   onChange={(value) =>
-                    updateField("destination", value)
+                    updateField(
+                      "destination",
+                      value
+                    )
                   }
                 />
               </div>
             </section>
 
+            {/* Ride details */}
             <section>
               <div className="mb-5 flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
@@ -195,7 +255,10 @@ export default function OfferRidePage() {
                   type="date"
                   value={form.date}
                   onChange={(value) =>
-                    updateField("date", value)
+                    updateField(
+                      "date",
+                      value
+                    )
                   }
                 />
 
@@ -204,7 +267,10 @@ export default function OfferRidePage() {
                   type="time"
                   value={form.time}
                   onChange={(value) =>
-                    updateField("time", value)
+                    updateField(
+                      "time",
+                      value
+                    )
                   }
                 />
 
@@ -215,7 +281,10 @@ export default function OfferRidePage() {
                   max="8"
                   value={form.seats}
                   onChange={(value) =>
-                    updateField("seats", value)
+                    updateField(
+                      "seats",
+                      value
+                    )
                   }
                 />
 
@@ -226,12 +295,125 @@ export default function OfferRidePage() {
                   placeholder="e.g. 80"
                   value={form.contribution}
                   onChange={(value) =>
-                    updateField("contribution", value)
+                    updateField(
+                      "contribution",
+                      value
+                    )
                   }
                 />
               </div>
             </section>
 
+            {/* Payment options */}
+            <section className="rounded-2xl border border-slate-200 bg-white p-5">
+              <div>
+                <h2 className="text-base font-bold text-slate-950">
+                  Payment Options
+                </h2>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  Passengers will pay you after the ride.
+                </p>
+              </div>
+
+              <div className="mt-5 space-y-3">
+                {/* Cash */}
+                <label
+                  className={`flex cursor-pointer items-center gap-3 rounded-xl border p-4 transition ${
+                    acceptsCash
+                      ? "border-blue-200 bg-blue-50/50"
+                      : "border-slate-200"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={acceptsCash}
+                    onChange={(event) =>
+                      setAcceptsCash(
+                        event.target.checked
+                      )
+                    }
+                    className="h-4 w-4"
+                  />
+
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                    <Banknote size={18} />
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">
+                      Cash after ride
+                    </p>
+
+                    <p className="text-xs text-slate-500">
+                      Passenger pays you in cash after the ride.
+                    </p>
+                  </div>
+                </label>
+
+                {/* UPI */}
+                <label
+                  className={`flex cursor-pointer items-center gap-3 rounded-xl border p-4 transition ${
+                    acceptsUpi
+                      ? "border-blue-200 bg-blue-50/50"
+                      : "border-slate-200"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={acceptsUpi}
+                    onChange={(event) =>
+                      setAcceptsUpi(
+                        event.target.checked
+                      )
+                    }
+                    className="h-4 w-4"
+                  />
+
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-600">
+                    <Smartphone size={18} />
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">
+                      UPI after ride
+                    </p>
+
+                    <p className="text-xs text-slate-500">
+                      Passenger pays your UPI after the ride.
+                    </p>
+                  </div>
+                </label>
+              </div>
+
+              {/* UPI ID */}
+              {acceptsUpi && (
+                <div className="mt-4">
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">
+                    Your UPI ID
+                  </label>
+
+                  <input
+                    type="text"
+                    value={upiId}
+                    onChange={(event) =>
+                      setUpiId(
+                        event.target.value
+                      )
+                    }
+                    placeholder="example@upi"
+                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                  />
+
+                  <p className="mt-2 text-xs text-slate-500">
+                    Your UPI ID will only be shown to
+                    passengers who select UPI for this booking.
+                  </p>
+                </div>
+              )}
+            </section>
+
+            {/* Vehicle */}
             <section>
               <div className="mb-5 flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
@@ -255,7 +437,10 @@ export default function OfferRidePage() {
                   placeholder="e.g. Hyundai i20"
                   value={form.vehicleName}
                   onChange={(value) =>
-                    updateField("vehicleName", value)
+                    updateField(
+                      "vehicleName",
+                      value
+                    )
                   }
                 />
 
@@ -264,12 +449,16 @@ export default function OfferRidePage() {
                   placeholder="e.g. UP00XX0000"
                   value={form.vehicleNumber}
                   onChange={(value) =>
-                    updateField("vehicleNumber", value)
+                    updateField(
+                      "vehicleNumber",
+                      value
+                    )
                   }
                 />
               </div>
             </section>
 
+            {/* Notes */}
             <section>
               <label className="block text-sm font-medium text-slate-700">
                 Additional notes
@@ -278,7 +467,10 @@ export default function OfferRidePage() {
               <textarea
                 value={form.notes}
                 onChange={(event) =>
-                  updateField("notes", event.target.value)
+                  updateField(
+                    "notes",
+                    event.target.value
+                  )
                 }
                 placeholder="Anything passengers should know?"
                 rows={4}
@@ -286,12 +478,14 @@ export default function OfferRidePage() {
               />
             </section>
 
+            {/* Error */}
             {errorMessage && (
               <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 {errorMessage}
               </div>
             )}
 
+            {/* Success */}
             {successMessage && (
               <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
                 <CheckCircle2 size={18} />
@@ -299,18 +493,24 @@ export default function OfferRidePage() {
               </div>
             )}
 
+            {/* Submit */}
             <button
               type="submit"
               disabled={loading}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {loading ? "Publishing ride..." : "Publish ride"}
+              {loading
+                ? "Publishing ride..."
+                : "Publish ride"}
 
-              {!loading && <ArrowRight size={17} />}
+              {!loading && (
+                <ArrowRight size={17} />
+              )}
             </button>
           </div>
         </form>
 
+        {/* Sidebar */}
         <aside className="h-fit rounded-3xl bg-slate-950 p-6 text-white">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10">
             <Car size={21} />
@@ -321,15 +521,20 @@ export default function OfferRidePage() {
           </h2>
 
           <p className="mt-3 text-sm leading-6 text-slate-300">
-            Your ride can help nearby commuters reduce their
-            travel cost while you recover part of your journey
-            expense.
+            Your ride can help nearby commuters reduce
+            their travel cost while you recover part of
+            your journey expense.
           </p>
 
           <div className="mt-7 space-y-4 text-sm">
             <InfoRow text="Share only your planned journey." />
+
             <InfoRow text="Choose how many seats are available." />
+
             <InfoRow text="Set a transparent contribution." />
+
+            <InfoRow text="Choose your preferred payment methods." />
+
             <InfoRow text="AI matching comes next." />
           </div>
         </aside>
@@ -366,7 +571,9 @@ function InputField({
         value={value}
         min={min}
         max={max}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) =>
+          onChange(event.target.value)
+        }
         placeholder={placeholder}
         className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
       />
@@ -374,7 +581,11 @@ function InputField({
   );
 }
 
-function InfoRow({ text }: { text: string }) {
+function InfoRow({
+  text,
+}: {
+  text: string;
+}) {
   return (
     <div className="flex items-start gap-3">
       <CheckCircle2

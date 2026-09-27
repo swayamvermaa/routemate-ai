@@ -23,6 +23,10 @@ export type Ride = {
 
   notes: string | null;
 
+  accepts_cash: boolean;
+  accepts_upi: boolean;
+  upi_id: string | null;
+
   status: "active" | "full" | "completed" | "cancelled";
 
   created_at: string;
@@ -31,11 +35,10 @@ export type Ride = {
 
 export type CreateRideInput = {
   pickup_location: string;
-  destination: string;
-
   pickup_lat?: number | null;
   pickup_lng?: number | null;
 
+  destination: string;
   destination_lat?: number | null;
   destination_lng?: number | null;
 
@@ -45,10 +48,13 @@ export type CreateRideInput = {
   available_seats: number;
   contribution: number;
 
-  vehicle_name?: string;
-  vehicle_number?: string;
+  vehicle_name?: string | null;
+  vehicle_number?: string | null;
+  notes?: string | null;
 
-  notes?: string;
+  accepts_cash: boolean;
+  accepts_upi: boolean;
+  upi_id?: string | null;
 };
 
 export async function createRide(
@@ -88,11 +94,20 @@ export async function createRide(
       available_seats: input.available_seats,
       contribution: input.contribution,
 
-      vehicle_name: input.vehicle_name || null,
-      vehicle_number:
-        input.vehicle_number || null,
+      vehicle_name:
+        input.vehicle_name?.trim() || null,
 
-      notes: input.notes || null,
+      vehicle_number:
+        input.vehicle_number?.trim() || null,
+
+      notes: input.notes?.trim() || null,
+
+      accepts_cash: input.accepts_cash,
+      accepts_upi: input.accepts_upi,
+
+      upi_id: input.accepts_upi
+        ? input.upi_id?.trim() || null
+        : null,
 
       status: "active",
     })
@@ -276,6 +291,9 @@ export type UpdateRideInput = Partial<
     | "vehicle_name"
     | "vehicle_number"
     | "notes"
+    | "accepts_cash"
+    | "accepts_upi"
+    | "upi_id"
   >
 >;
 
@@ -397,7 +415,6 @@ export async function getMyRide(
   return data as Ride;
 }
 
-
 /* =========================================================
    BOOKINGS
    ========================================================= */
@@ -413,14 +430,27 @@ export type Booking = {
   id: string;
   ride_id: string;
   passenger_id: string;
+
   status: BookingStatus;
+
+  payment_method: "cash" | "upi" | null;
+  payment_status:
+    | "pending"
+    | "paid"
+    | "confirmed";
+  payment_amount: number | null;
+
   requested_at: string;
   responded_at: string | null;
+
   created_at: string;
   updated_at: string;
 };
 
-export async function requestToJoinRide(rideId: string) {
+export async function requestToJoinRide(
+  rideId: string,
+  paymentMethod: "cash" | "upi"
+) {
   const {
     data: { user },
     error: userError,
@@ -435,26 +465,136 @@ export async function requestToJoinRide(rideId: string) {
     throw new Error("User is not authenticated.");
   }
 
-  const { data, error } = await supabase.rpc("request_to_join_ride", {
-    p_ride_id: rideId,
-  });
+  /*
+   * Get ride/payment information before
+   * creating the booking.
+   */
+  const { data: ride, error: rideError } =
+    await supabase
+      .from("rides")
+      .select(
+        `
+          id,
+          contribution,
+          accepts_cash,
+          accepts_upi,
+          upi_id,
+          available_seats,
+          status,
+          driver_id
+        `
+      )
+      .eq("id", rideId)
+      .single();
+
+  if (rideError) {
+    throw rideError;
+  }
+
+  /*
+   * Driver cannot request their own ride.
+   */
+  if (ride.driver_id === user.id) {
+    throw new Error(
+      "You cannot request to join your own ride."
+    );
+  }
+
+  /*
+   * Check seat availability.
+   */
+  if (ride.available_seats <= 0) {
+    throw new Error("This ride is full.");
+  }
+
+  /*
+   * Check ride status.
+   */
+  if (ride.status !== "active") {
+    throw new Error(
+      "This ride is no longer accepting requests."
+    );
+  }
+
+  /*
+   * Validate selected payment method.
+   */
+  if (
+    paymentMethod === "cash" &&
+    !ride.accepts_cash
+  ) {
+    throw new Error(
+      "Cash payment is not available for this ride."
+    );
+  }
+
+  if (
+    paymentMethod === "upi" &&
+    !ride.accepts_upi
+  ) {
+    throw new Error(
+      "UPI payment is not available for this ride."
+    );
+  }
+
+  /*
+   * Create booking using the secure RPC.
+   */
+  const { data, error } = await supabase.rpc(
+    "request_to_join_ride",
+    {
+      p_ride_id: rideId,
+    }
+  );
 
   if (error) {
-    console.error("Supabase request_to_join_ride error:", {
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      code: error.code,
-    });
+    console.error(
+      "Supabase request_to_join_ride error:",
+      {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+      }
+    );
 
     throw new Error(
       error.message ||
         error.details ||
-        "Unable to send ride request."
+        "Unable to send your request."
     );
   }
 
-  return data as Booking;
+  const booking = data as Booking;
+
+  /*
+   * Save payment preference and amount.
+   */
+  const {
+    data: updatedBooking,
+    error: updateError,
+  } = await supabase
+    .from("bookings")
+    .update({
+      payment_method: paymentMethod,
+      payment_status: "pending",
+      payment_amount: ride.contribution,
+    })
+    .eq("id", booking.id)
+    .eq("passenger_id", user.id)
+    .select()
+    .single();
+
+  if (updateError) {
+    console.error(
+      "Failed to save payment preference:",
+      updateError
+    );
+
+    throw updateError;
+  }
+
+  return updatedBooking as Booking;
 }
 
 export async function getMyBookingForRide(
